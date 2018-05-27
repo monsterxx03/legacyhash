@@ -5,17 +5,17 @@ static PyObject* hash(PyObject *self, PyObject *args) {
     register Py_ssize_t len;
     register Py_UNICODE *p;
     register long x = 0;
-    if (PyArg_UnpackTuple(args, "obj", 1, 1, &object)) {
-        len = PyUnicode_GET_SIZE(object);
-        p = PyUnicode_AS_UNICODE(object);
-        x ^= *p << 7;
-        while (--len >= 0) {
-            x = (1000003*x) ^ *p++;
-        }
-        x ^= PyUnicode_GET_SIZE(object);
-        return Py_BuildValue("l", x);
+    if (!PyArg_ParseTuple(args, "O:obj", &object)) {
+        return NULL;
     }
-    return Py_BuildValue("s", "hhh");
+    len = PyUnicode_GET_SIZE(object);
+    p = PyUnicode_AS_UNICODE(object);
+    x ^= *p << 7;
+    while (--len >= 0) {
+        x = (1000003*x) ^ *p++;
+    }
+    x ^= PyUnicode_GET_SIZE(object);
+    return Py_BuildValue("l", x);
 }
 
 PyDoc_STRVAR(pydoc_hash,
