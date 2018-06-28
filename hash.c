@@ -33,8 +33,43 @@ hash_bytes(PyObject *obj) {
     return x;
 }
 
+static long
+hash_long(PyObject *obj) {
+    unsigned long x  = 0;
+    int sign = 1;
+    PyLongObject *v = (PyLongObject *)obj;
+    Py_ssize_t i = Py_SIZE(v);
+    switch(i) {
+    case -1: return v->ob_digit[0]==1 ? -2 : -(sdigit)v->ob_digit[0];
+    case 0: return 0;
+    case 1: return v->ob_digit[0];
+    }
+    // Copy from python2.7 Objects/longobject.c
+    if (i < 0) {
+        sign = -1;
+        i = -(i);
+    }
+    /* The following loop produces a C unsigned long x such that x is
+    congruent to the absolute value of v modulo ULONG_MAX.  The
+    resulting x is nonzero if and only if v is. */
+    while (--i >= 0) {
+        /* Force a native long #-bits (32 or 64) circular shift */
+        x = (x >> (8*SIZEOF_LONG-PyLong_SHIFT)) | (x << PyLong_SHIFT);
+        x += v->ob_digit[i];
+        /* If the addition above overflowed we compensate by
+           incrementing.  This preserves the value modulo
+           ULONG_MAX. */
+        if (x < v->ob_digit[i])
+            x++;
+    }
+    x = x * sign;
+    if (x == (unsigned long)-1)
+        x = (unsigned long)-2;
+    return (long)x;
+}
 
-static PyObject* hash(PyObject *self, PyObject *args) {
+static PyObject* 
+hash(PyObject *self, PyObject *args) {
     PyObject *object;
     if (!PyArg_ParseTuple(args, "O:obj", &object)) {
         return NULL;
@@ -43,8 +78,10 @@ static PyObject* hash(PyObject *self, PyObject *args) {
         return Py_BuildValue("l", hash_bytes(object));
     } else if (PyUnicode_Check(object)) {
         return Py_BuildValue("l", hash_unicode(object));
+    } else if (PyLong_Check(object)) {
+        return Py_BuildValue("l", hash_long(object));
     }
-    PyErr_Format(PyExc_TypeError, "object must bytes or unicode, got %s", object->ob_type->tp_name);
+    PyErr_Format(PyExc_TypeError, "object must bytes, unicode or int, got %s", object->ob_type->tp_name);
     return NULL;
 }
 
